@@ -252,6 +252,23 @@ namespace pc
     int port_; // listening port
   };
 
+  struct ip_addr
+  {
+    ip_addr();
+    ip_addr( str addr_port );
+    ip_addr( const ip_addr& );
+    ip_addr& operator=( const ip_addr&);
+    union { char buf_[16]; uint64_t i_[2]; };
+  };
+
+  // simple udp sending socket
+  class udp_socket : public net_socket
+  {
+  public:
+    bool init() override;
+    void send( ip_addr *, net_buf * );
+  };
+
   // http request message
   class http_request : public net_wtr
   {

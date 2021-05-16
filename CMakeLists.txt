@@ -36,6 +36,7 @@ set( PC_SRC
   pc/replay.cpp;
   pc/request.cpp;
   pc/rpc_client.cpp;
+  pc/tpu.cpp;
   pc/user.cpp;
   )
 
@@ -56,6 +57,7 @@ set( PC_HDR
   pc/replay.hpp;
   pc/request.hpp;
   pc/rpc_client.hpp
+  pc/tpu.hpp;
   pc/user.hpp )
 
 add_library( pc STATIC ${PC_SRC} )

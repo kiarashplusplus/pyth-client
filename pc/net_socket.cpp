@@ -2,6 +2,7 @@
 #include <openssl/sha.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -749,6 +750,67 @@ bool tcp_listen::init()
   }
   set_fd( fd );
   return net_listen::init();
+}
+
+///////////////////////////////////////////////////////////////////////////
+// udp_socket
+
+ip_addr::ip_addr()
+{
+  i_[0] = i_[1] = 0UL;
+}
+
+ip_addr::ip_addr( const ip_addr& obj )
+{
+  i_[0] = obj.i_[0];
+  i_[1] = obj.i_[1];
+}
+
+ip_addr& ip_addr::operator=( const ip_addr& obj )
+{
+  i_[0] = obj.i_[0];
+  i_[1] = obj.i_[1];
+  return *this;
+}
+
+ip_addr::ip_addr( str ap )
+{
+  i_[0] = i_[1] = 0UL;
+  char buf[64];
+  sockaddr_in *sptr = (sockaddr_in*)buf_;
+  sptr->sin_family = AF_INET;
+  for( unsigned i=0; i != ap.len_; ++i ) {
+    buf[i] = ap.str_[i];
+    if ( buf[i] == ':' ) {
+      buf[i++] = '\0';
+      sptr->sin_addr.s_addr = ::inet_addr( buf );
+      sptr->sin_port = ::htons( str_to_int( &ap.str_[i], ap.len_ - i ) );
+      break;
+    }
+  }
+}
+
+bool udp_socket::init()
+{
+  teardown();
+  reset_err();
+  int fd = ::socket( AF_INET, SOCK_DGRAM, IPPROTO_UDP );
+  if ( fd < 0 ) {
+    return set_err_msg( "failed to construct udp socket", errno );
+  }
+  set_fd( fd );
+  set_block( false );
+  return true;
+}
+
+void udp_socket::send( ip_addr *ap, net_buf *bptr )
+{
+  sockaddr *saddr = (sockaddr*)ap->buf_;
+  int rc = ::sendto( get_fd(), bptr->buf_, bptr->size_, MSG_NOSIGNAL,
+      saddr, sizeof( sockaddr_in ) );
+  if ( PC_UNLIKELY( rc < 0 ) ) {
+    set_err_msg( "failed to send udp", errno );
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////

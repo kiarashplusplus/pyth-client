@@ -571,6 +571,93 @@ void rpc::get_minimum_balance_rent_exemption::response( const jtree& jt)
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// get_cluster_nodes
+
+bool rpc::get_cluster_nodes::get_ip_addr( const pub_key& pkey, ip_addr& res )
+{
+  node_map_t::iter_t it = nmap_.find( pkey );
+  if ( it ) {
+    res = nmap_.obj( it );
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void rpc::get_cluster_nodes::request( json_wtr& msg )
+{
+  msg.add_key( "method", "getClusterNodes" );
+}
+
+void rpc::get_cluster_nodes::response( const jtree& jt )
+{
+  if ( on_error( jt, this ) ) return;
+  uint32_t rtok = jt.find_val( 1, "result" );
+  pub_key pkey;
+  for( uint32_t tok = jt.get_first( rtok ); tok; tok = jt.get_next( tok ) ) {
+    pkey.init_from_text( jt.get_str( jt.find_val( tok, "pubkey" ) ) );
+    ip_addr addr( jt.get_str( jt.find_val( tok, "tpu" ) ) );
+    nmap_.ref( nmap_.add( pkey ) ) = addr;
+  }
+  on_response( this );
+}
+
+///////////////////////////////////////////////////////////////////////////
+// get_slot_leaders
+
+rpc::get_slot_leaders::get_slot_leaders()
+: slot_( 0L )
+{
+}
+
+void rpc::get_slot_leaders::set_slot(uint64_t slot)
+{
+  slot_ = slot;
+}
+
+void rpc::get_slot_leaders::set_limit( uint64_t limit )
+{
+  limit_ = limit;
+}
+
+uint64_t rpc::get_slot_leaders::get_last_slot() const
+{
+  return slot_ + limit_;
+}
+
+pub_key *rpc::get_slot_leaders::get_leader( uint64_t slot )
+{
+  uint64_t idx = slot - slot_;
+  if ( idx < lvec_.size() ) {
+    return &lvec_[idx];
+  } else {
+    return nullptr;
+  }
+}
+
+void rpc::get_slot_leaders::request( json_wtr& msg )
+{
+  lvec_.clear();
+  msg.add_key( "method", "getSlotLeaders" );
+  msg.add_key( "params", json_wtr::e_arr );
+  msg.add_val( slot_ );
+  msg.add_val( limit_ );
+  msg.pop();
+}
+
+void rpc::get_slot_leaders::response( const jtree& jt )
+{
+  if ( on_error( jt, this ) ) return;
+  uint32_t rtok = jt.find_val( 1, "result" );
+  pub_key pkey;
+  for( uint32_t tok = jt.get_first( rtok ); tok; tok = jt.get_next( tok ) ) {
+    pkey.init_from_text( jt.get_str( tok ) );
+    lvec_.push_back( pkey );
+  }
+  on_response( this );
+}
+
+///////////////////////////////////////////////////////////////////////////
 // transfer
 
 void rpc::transfer::set_block_hash( hash *bhash )
