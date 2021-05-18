@@ -49,9 +49,7 @@ void tx_user::teardown()
 // tx_svr
 
 tx_svr::tx_svr()
-: has_curr_( false ),
-  has_next_( false ),
-  has_conn_( false ),
+: has_conn_( false ),
   wait_conn_( false ),
   msg_( new char[buf_len] ),
   slot_( 0UL ),
@@ -133,10 +131,21 @@ bool tx_svr::init()
   return true;
 }
 
-void tx_svr::poll()
+void tx_svr::poll( bool do_wait )
 {
   // epoll loop
-  nl_.poll( 1 );
+  if ( do_wait ) {
+    nl_.poll( 1 );
+  } else {
+    hconn_.poll();
+    wconn_.poll();
+    tsvr_.poll();
+    for( tx_user *uptr = olist_.first(); uptr; ) {
+      tx_user *nptr = uptr->get_next();
+      uptr->poll();
+      uptr = nptr;
+    }
+  }
 
   // destroy any users scheduled for deletion
   teardown_users();
@@ -185,15 +194,21 @@ void tx_svr::accept( int fd )
 
 void tx_svr::submit( const char *buf, size_t len )
 {
-  // send to current leader
-  if ( has_curr_ ) {
-    tconn_.send( curr_ldr_, buf, len );
+  PC_LOG_DBG( "submit tx" )
+    .add( "slot", slot_ )
+    .add( "num_leaders", avec_.size() )
+    .end();
+  for( ip_addr& addr: avec_ ) {
+    tconn_.send( &addr, buf, len );
   }
+}
 
-  // send to next leader (if not same as current leader)
-  if ( has_next_ ) {
-    tconn_.send( next_ldr_, buf, len );
+void tx_svr::add_addr( const ip_addr& addr )
+{
+  for( ip_addr& iaddr: avec_ ) {
+    if ( iaddr == addr ) return;
   }
+  avec_.push_back( addr );
 }
 
 void tx_svr::on_response( rpc::slot_subscribe *res )
@@ -204,27 +219,31 @@ void tx_svr::on_response( rpc::slot_subscribe *res )
     return;
   }
   slot_ = slot;
-  PC_LOG_DBG( "receive slot" ).add( "slot", slot_ ).end();
 
   // request next slot leader schedule
   if ( PC_UNLIKELY( lreq_->get_is_recv() &&
                     slot_ > lreq_->get_last_slot() - PC_LEADER_MIN ) ) {
-    lreq_->set_slot( slot_ );
+    lreq_->set_slot( slot_ - PC_LEADER_MIN );
     clnt_.send( lreq_ );
   }
 
-  // update ip address of current and next leader
-  pub_key *pkey = lreq_->get_leader( slot_ );
-  has_curr_ = pkey && creq_->get_ip_addr( *pkey, *curr_ldr_ );
-  pub_key *nkey = lreq_->get_leader( slot_+1 );
-  has_next_ = nkey && *nkey != *pkey &&
-    creq_->get_ip_addr( *nkey, *next_ldr_ );
-  if ( has_curr_ ) {
-    PC_LOG_DBG( "current leader" ).add( "key", *pkey ).end();
+  // construct unique list of addresses of the leaders for
+  // the previous and next num_slots
+  avec_.clear();
+  pub_key *pkey = nullptr;
+  ip_addr iaddr;
+  for( uint64_t slot = slot_-1; slot <= slot_+4; ++slot ) {
+    pub_key *ikey = lreq_->get_leader( slot );
+    if ( ikey && ( !pkey || *ikey != *pkey) ) {
+      creq_->get_ip_addr( *ikey, iaddr );
+      add_addr( iaddr );
+    }
+    pkey = ikey;
   }
-  if ( has_next_ ) {
-    PC_LOG_DBG( "next leader" ).add( "key", *nkey ).end();
-  }
+  PC_LOG_DBG( "receive slot" )
+    .add( "slot", slot_ )
+    .add( "num_leaders", avec_.size() )
+    .end();
 }
 
 void tx_svr::on_response( rpc::get_cluster_nodes *m )

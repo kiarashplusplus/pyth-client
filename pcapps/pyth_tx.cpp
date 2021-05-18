@@ -35,6 +35,9 @@ int usage()
   std::cerr << "  -l <log_file>" << std::endl;
   std::cerr << "     Optional log file - uses stderr if not provided\n"
             << std::endl;
+  std::cerr << "  -n" << std::endl;
+  std::cerr << "     No wait mode - i.e. run using busy poll loop\n"
+            << std::endl;
   std::cerr << "  -d" << std::endl;
   std::cerr << "     Turn on debug logging. Can also toggle this on/off via "
                "kill -s SIGUSR1 <pid>\n" << std::endl;
@@ -63,15 +66,15 @@ int main(int argc, char **argv)
   // command-line parsing
   std::string log_file;
   std::string rpc_host = get_rpc_host();
-  int pyth_port = get_port();
-  bool do_debug = false;
-  int opt = 0;
-  while( (opt = ::getopt(argc,argv, "r:p:l:dh" )) != -1 ) {
+  int opt = 0, pyth_port = get_port();
+  bool do_wait = true, do_debug = false;
+  while( (opt = ::getopt(argc,argv, "r:p:l:dnh" )) != -1 ) {
     switch(opt) {
       case 'r': rpc_host = optarg; break;
       case 'p': pyth_port = ::atoi(optarg); break;
       case 'd': do_debug = true; break;
       case 'l': log_file = optarg; break;
+      case 'n': do_wait = false; break;
       default: return usage();
     }
   }
@@ -100,7 +103,7 @@ int main(int argc, char **argv)
   signal( SIGTERM, sig_handle );
   signal( SIGUSR1, sig_toggle );
   while( do_run && !mgr.get_is_err() ) {
-    mgr.poll();
+    mgr.poll( do_wait );
   }
   int retcode = 0;
   if ( mgr.get_is_err() ) {

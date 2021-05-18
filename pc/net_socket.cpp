@@ -802,11 +802,8 @@ bool udp_socket::init()
 void udp_socket::send( ip_addr *ap, const char *buf, size_t len )
 {
   sockaddr *saddr = (sockaddr*)ap->buf_;
-  int rc = ::sendto( get_fd(), buf, len, MSG_NOSIGNAL,
+  ::sendto( get_fd(), buf, len, MSG_NOSIGNAL,
       saddr, sizeof( sockaddr_in ) );
-  if ( PC_UNLIKELY( rc < 0 ) ) {
-    set_err_msg( "failed to send udp", errno );
-  }
 }
 
 ///////////////////////////////////////////////////////////////////////////

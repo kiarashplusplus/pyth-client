@@ -49,7 +49,7 @@ namespace pc
     bool init();
 
     // poll for tx_svr updates
-    void poll();
+    void poll(bool do_wait = true);
 
     // teardown all connections
     void teardown();
@@ -70,16 +70,16 @@ namespace pc
 
   private:
 
-    typedef dbl_list<tx_user> user_list_t;
+    typedef dbl_list<tx_user>    user_list_t;
+    typedef std::vector<ip_addr> addr_vec_t;
 
     void reconnect_rpc();
     void log_disconnect();
     void teardown_users();
+    void add_addr( const ip_addr& );
 
     static const size_t buf_len = 2048;
 
-    bool         has_curr_;    // have address for current leader
-    bool         has_next_;    // have address for next leader
     bool         has_conn_;    // rpc connected flag
     bool         wait_conn_;   // wait for rpc connect flag
     net_loop     nl_;          // epoll loop
@@ -87,8 +87,7 @@ namespace pc
     char        *msg_;         // message buffer
     ip_addr      src_[1];      // src ip address
     uint64_t     slot_;        // current slot
-    ip_addr      curr_ldr_[1]; // current leader ip address
-    ip_addr      next_ldr_[1]; // next leader ip address
+    addr_vec_t   avec_;        // address vector of leaders
     tcp_connect  hconn_;       // rpc http connection
     ws_connect   wconn_;       // rpc websocket sonnection
     udp_socket   tconn_;       // udp sending socket

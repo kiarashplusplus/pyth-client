@@ -228,6 +228,18 @@ void manager::teardown()
   wconn_.close();
 }
 
+// hard-coded well-known solana end-points
+static std::string get_rpc_end_point( const std::string& rhost )
+{
+  if ( rhost == "api.devnet.solana.com" ) {
+    return rhost + ":80:80";
+  } else if ( rhost == "api.mainnet-beta.solana.com" ) {
+    return rhost + ":80:80";
+  } else {
+    return rhost;
+  }
+}
+
 bool manager::init()
 {
   // read key directory
@@ -261,7 +273,8 @@ bool manager::init()
 
   // decompose rpc_host into host:port
   int rport =0, wport = 0;
-  std::string rhost = get_host_port( rhost_, rport, wport );
+  std::string rhost = get_host_port(
+      get_rpc_end_point( rhost_ ), rport, wport );
   if ( rport == 0 ) rport = PC_RPC_HTTP_PORT;
   if ( wport == 0 ) wport = rport+1;
 

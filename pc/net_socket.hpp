@@ -258,6 +258,7 @@ namespace pc
     ip_addr( str addr_port );
     ip_addr( const ip_addr& );
     ip_addr& operator=( const ip_addr&);
+    bool operator==( const ip_addr&) const;
     union { char buf_[16]; uint64_t i_[2]; };
   };
 
@@ -477,6 +478,11 @@ namespace pc
 
   /////////////////////////////////////////////////////////////////////////
   // inline impl.
+
+  inline bool ip_addr::operator==( const ip_addr& obj ) const
+  {
+    return i_[0] == obj.i_[0] && i_[1] == obj.i_[1];
+  }
 
   inline bool tx_connect::get_is_connect() const
   {
