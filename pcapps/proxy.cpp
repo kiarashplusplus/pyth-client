@@ -60,7 +60,8 @@ proxy::proxy()
   sreq_->set_sub( this );
   creq_->set_sub( this );
   lreq_->set_sub( this );
-  lreq_->set_limit( 256 );
+//  lreq_->set_limit( 256 );
+  lreq_->set_limit( 32 );
 }
 
 proxy::~proxy()
@@ -133,7 +134,7 @@ void proxy::poll()
 
   // reconnect to rpc as required
   if ( PC_UNLIKELY( !has_conn_ ||
-        !hconn_.get_is_err() || !wconn_.get_is_err() ) ) {
+        hconn_.get_is_err() || wconn_.get_is_err() ) ) {
     reconnect_rpc();
   }
 }
@@ -208,6 +209,12 @@ void proxy::on_response( rpc::slot_subscribe *res )
   pub_key *nkey = lreq_->get_leader( slot_+1 );
   has_next_ = nkey && *nkey != *pkey &&
     creq_->get_ip_addr( *nkey, *next_ldr_ );
+  if ( has_curr_ ) {
+    PC_LOG_DBG( "current leader" ).add( "key", *pkey ).end();
+  }
+  if ( has_next_ ) {
+    PC_LOG_DBG( "next leader" ).add( "key", *nkey ).end();
+  }
 }
 
 void proxy::on_response( rpc::get_cluster_nodes *m )
@@ -217,6 +224,7 @@ void proxy::on_response( rpc::get_cluster_nodes *m )
         + m->get_err_msg()  + "]" );
     return;
   }
+  PC_LOG_DBG( "received get_cluster_nodes" ).end();
 }
 
 void proxy::on_response( rpc::get_slot_leaders *m )
@@ -226,6 +234,7 @@ void proxy::on_response( rpc::get_slot_leaders *m )
         + m->get_err_msg()  + "]" );
     return;
   }
+  PC_LOG_DBG( "received get_slot_leaders" ).end();
 }
 
 void proxy::reconnect_rpc()
