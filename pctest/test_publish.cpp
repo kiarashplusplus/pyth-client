@@ -156,7 +156,7 @@ void test_connect::on_add_symbol( pc::manager *, pc::price *sym )
   }
   // construct publisher for SYMBOL2
   if ( nsym == "SYMBOL2" && !pub2_ ) {
-    pub2_ = new test_publish( sym, 20000, 200 );
+    pub2_ = new test_publish( sym, 2000000, 20000 );
   }
 
   // iterate through all the product attributes and log them
