@@ -1611,7 +1611,7 @@ uint64_t price::get_pub_slot() const
 
 bool price::get_is_ready_publish() const
 {
-  return st_ == e_publish;
+  return st_ == e_publish && get_manager()->get_is_tx_connect();
 }
 
 void price::reset()
@@ -1670,7 +1670,7 @@ bool price::update(
   if ( PC_UNLIKELY( !has_publisher() ) ) {
     return false;
   }
-  if ( PC_UNLIKELY( st_ != e_publish ) ) {
+  if ( PC_UNLIKELY( !get_is_ready_publish() ) ) {
     return false;
   }
   manager *mgr = get_manager();

@@ -70,6 +70,7 @@ manager::manager()
 
 manager::~manager()
 {
+  teardown();
   for( get_mapping *mptr: mvec_ ) {
     delete mptr;
   }
@@ -78,7 +79,6 @@ manager::~manager()
     delete ptr;
   }
   svec_.clear();
-  teardown();
 }
 
 void manager::add_map_sub()
@@ -549,6 +549,7 @@ void manager::teardown_users()
     PC_LOG_DBG( "delete_user" ).add("fd", usr->get_fd() ).end();
     usr->close();
     dlist_.del( usr );
+    delete usr;
   }
 }
 

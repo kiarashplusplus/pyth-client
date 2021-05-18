@@ -478,6 +478,11 @@ namespace pc
   /////////////////////////////////////////////////////////////////////////
   // inline impl.
 
+  inline bool tx_connect::get_is_connect() const
+  {
+    return has_conn_;
+  }
+
   inline unsigned http_server::get_num_header() const
   {
     return hnms_.size();

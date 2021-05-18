@@ -1108,11 +1108,6 @@ tx_connect::tx_connect()
 {
 }
 
-bool tx_connect::get_is_connect() const
-{
-  return has_conn_;
-}
-
 void tx_connect::set_sub( tx_sub*sub )
 {
   sub_ = sub;
@@ -1139,7 +1134,7 @@ void tx_connect::reconnect()
   // log failure to reconnect
   if ( wait_conn_ || has_conn_ ) {
     wait_conn_ = false;
-    if ( sub_ ) sub_->on_disconnect();
+    if ( has_conn_ && sub_ ) sub_->on_disconnect();
   }
 
   // wait for reconnect timeout

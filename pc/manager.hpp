@@ -155,6 +155,7 @@ namespace pc
     // tx_sub callbacks
     void on_connect() override;
     void on_disconnect() override;
+    bool get_is_tx_connect() const;
 
     // rpc callbacks
     void on_response( rpc::slot_subscribe * );
@@ -228,6 +229,11 @@ namespace pc
     rpc::slot_subscribe        sreq_[1]; // slot subscription
     rpc::get_recent_block_hash breq_[1]; // block hash request
   };
+
+  inline bool manager::get_is_tx_connect() const
+  {
+    return tconn_.get_is_connect();
+  }
 
   inline void manager::write( pc_pub_key_t *key, pc_acc_t *ptr )
   {

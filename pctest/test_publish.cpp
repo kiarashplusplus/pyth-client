@@ -21,11 +21,11 @@ public:
   // on completion of (re)bootstrap of accounts following (re)connect
   void on_init( pc::manager * ) override;
 
-  // on connection to proxy publisher
-  void on_proxy_connect( pc::manager * );
+  // on connection to pyth_tx proxy publisher
+  void on_tx_connect( pc::manager * ) override;
 
-  // on disconnect from proxy publisher
-  void on_proxy_disconnect( pc::manager * );
+  // on disconnect from pyth_tx proxy publisher
+  void on_tx_disconnect( pc::manager * ) override;
 
   // construct publishers on addition of new symbols
   void on_add_symbol( pc::manager *, pc::price * ) override;
@@ -123,14 +123,14 @@ void test_connect::on_init( pc::manager * )
   PC_LOG_INF( "test_connect: initialized" ).end();
 }
 
-void test_connect::on_proxy_connect( pc::manager * )
+void test_connect::on_tx_connect( pc::manager * )
 {
-  PC_LOG_INF( "test_connect: proxy connected" ).end();
+  PC_LOG_INF( "test_connect: pyth_tx connected" ).end();
 }
 
-void test_connect::on_proxy_disconnect( pc::manager * )
+void test_connect::on_tx_disconnect( pc::manager * )
 {
-  PC_LOG_INF( "test_connect: proxy disconnected" ).end();
+  PC_LOG_INF( "test_connect: pyth_tx disconnected" ).end();
 }
 
 void test_connect::on_add_symbol( pc::manager *, pc::price *sym )

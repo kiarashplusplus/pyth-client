@@ -26,9 +26,18 @@ int usage()
   std::cerr << "options include:" << std::endl;
   std::cerr << "  -r <rpc_host (default " << get_rpc_host() << ")>"
             << std::endl;
+  std::cerr << "     Host name or IP address of solana rpc node in the form "
+               "host_name[:rpc_port[:ws_port]]\n" << std::endl;
   std::cerr << "  -p <listening_port (default " << get_port() << ">"
             << std::endl;
+  std::cerr << "     tcp/ip port for pyth-client clients to connect to\n"
+            << std::endl;
   std::cerr << "  -l <log_file>" << std::endl;
+  std::cerr << "     Optional log file - uses stderr if not provided\n"
+            << std::endl;
+  std::cerr << "  -d" << std::endl;
+  std::cerr << "     Turn on debug logging. Can also toggle this on/off via "
+               "kill -s SIGUSR1 <pid>\n" << std::endl;
   return 1;
 }
 

@@ -3,6 +3,8 @@
 
 #define PC_TPU_PROXY_PORT     8898
 #define PC_RPC_HTTP_PORT      8899
+#define PC_LEADER_MAX         256
+#define PC_LEADER_MIN         16
 #define PC_RECONNECT_TIMEOUT  (120L*1000000000L)
 
 using namespace pc;
@@ -59,13 +61,14 @@ tx_svr::tx_svr()
   sreq_->set_sub( this );
   creq_->set_sub( this );
   lreq_->set_sub( this );
-//  lreq_->set_limit( 256 );
-  lreq_->set_limit( 32 );
+  lreq_->set_limit( PC_LEADER_MAX );
 }
 
 tx_svr::~tx_svr()
 {
   teardown();
+  delete [] msg_;
+  msg_ = nullptr;
 }
 
 void tx_svr::set_rpc_host( const std::string& rhost )
@@ -159,6 +162,7 @@ void tx_svr::teardown_users()
     PC_LOG_DBG( "delete_user" ).add("fd", usr->get_fd() ).end();
     usr->close();
     dlist_.del( usr );
+    delete usr;
   }
 }
 
@@ -204,7 +208,7 @@ void tx_svr::on_response( rpc::slot_subscribe *res )
 
   // request next slot leader schedule
   if ( PC_UNLIKELY( lreq_->get_is_recv() &&
-                    slot_ > lreq_->get_last_slot() - 16 ) ) {
+                    slot_ > lreq_->get_last_slot() - PC_LEADER_MIN ) ) {
     lreq_->set_slot( slot_ );
     clnt_.send( lreq_ );
   }
