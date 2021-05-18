@@ -1795,6 +1795,11 @@ void rpc::del_publisher::response( const jtree& jt )
   on_response( this );
 }
 
+///////////////////////////////////////////////////////////////////////////
+
+tpu_request::~tpu_request()
+{
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // upd_price
@@ -1829,11 +1834,6 @@ void rpc::upd_price::set_block_hash( hash *bhash )
   bhash_ = bhash;
 }
 
-signature *rpc::upd_price::get_signature()
-{
-  return &sig_;
-}
-
 void rpc::upd_price::set_price( int64_t px,
                                 uint64_t conf,
                                 symbol_status st,
@@ -1847,11 +1847,26 @@ void rpc::upd_price::set_price( int64_t px,
   cmd_   = is_agg?e_cmd_agg_price:e_cmd_upd_price;
 }
 
-void rpc::upd_price::request( json_wtr& msg )
+class tpu_wtr : public net_wtr
 {
-  // construct binary transaction
-  net_buf *bptr = net_buf::alloc();
-  bincode tx( bptr->buf_ );
+public:
+  void init( bincode& tx ) {
+    tx.attach( hd_->buf_ );
+    tx.add( (uint16_t)PC_TPU_PROTO_ID );
+    tx.add( (uint16_t)0 );
+  }
+  void commit( bincode& tx ) {
+    tpu_hdr *hdr = (tpu_hdr*)hd_->buf_;
+    hd_->size_ = tx.size();
+    hdr->size_ = tx.size();
+  }
+};
+
+void rpc::upd_price::build( net_wtr& wtr )
+{
+  // construct binary transaction and add header
+  bincode tx;
+  ((tpu_wtr&)wtr).init( tx );
 
   // signatures section
   tx.add_len<1>();      // one signature (publish)
@@ -1894,22 +1909,5 @@ void rpc::upd_price::request( json_wtr& msg )
 
   // all accounts need to sign transaction
   tx.sign( pub_idx, tx_idx, *pkey_ );
-  sig_.init_from_buf( (const uint8_t*)(tx.get_buf() + pub_idx) );
-
-  // encode transaction and add to json params
-  msg.add_key( "method", "sendTransaction" );
-  msg.add_key( "params", json_wtr::e_arr );
-  msg.add_val_enc_base64( str( tx.get_buf(), tx.size() ) );
-  msg.add_val( json_wtr::e_obj );
-  msg.add_key( "skipPreflight", json_wtr::jtrue() );
-  msg.add_key( "encoding", "base64" );
-  msg.pop();
-  msg.pop();
-  bptr->dealloc();
-}
-
-void rpc::upd_price::response( const jtree& jt )
-{
-  if ( on_error( jt, this ) ) return;
-  on_response( this );
+  ((tpu_wtr&)wtr).commit( tx );
 }

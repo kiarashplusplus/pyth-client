@@ -266,7 +266,7 @@ namespace pc
   {
   public:
     bool init() override;
-    void send( ip_addr *, net_buf * );
+    void send( ip_addr *, const char *buf, size_t len );
   };
 
   // http request message
@@ -352,6 +352,30 @@ namespace pc
     static const uint8_t pong_id   = 0xa;
 
     void commit( uint8_t opcode, net_wtr&, bool mask );
+  };
+
+  class tpu_sub
+  {
+  public:
+    virtual ~tpu_sub();
+    virtual void on_connect() = 0;
+    virtual void on_disconnect() =0;
+  };
+
+  // tpu prox connection
+  class tpu_connect : public tcp_connect
+  {
+  public:
+    tpu_connect();
+    void set_sub( tpu_sub* );
+    void poll() override;
+  private:
+    void reconnect();
+    bool    has_conn_;
+    bool    wait_conn_;
+    int64_t cts_;
+    int64_t ctimeout_;
+    tpu_sub*sub_;
   };
 
   // websocket client connection

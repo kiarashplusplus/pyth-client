@@ -36,7 +36,6 @@ set( PC_SRC
   pc/replay.cpp;
   pc/request.cpp;
   pc/rpc_client.cpp;
-  pc/tpu.cpp;
   pc/user.cpp;
   )
 
@@ -57,7 +56,6 @@ set( PC_HDR
   pc/replay.hpp;
   pc/request.hpp;
   pc/rpc_client.hpp
-  pc/tpu.hpp;
   pc/user.hpp )
 
 add_library( pc STATIC ${PC_SRC} )
@@ -75,6 +73,8 @@ add_executable( pyth pcapps/pyth.cpp )
 target_link_libraries( pyth ${PC_DEP} )
 add_executable( pyth_csv pcapps/pyth_csv.cpp )
 target_link_libraries( pyth_csv ${PC_DEP} )
+add_executable( pyth_proxy pcapps/proxy.cpp pcapps/pyth_proxy.cpp )
+target_link_libraries( pyth_proxy ${PC_DEP} )
 
 #
 # install

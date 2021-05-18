@@ -30,6 +30,12 @@ namespace pc
     // on disconnect from solana validator
     virtual void on_disconnect( manager * );
 
+    // on connection to transaction proxy server
+    virtual void on_proxy_connect( manager * );
+
+    // on disconnect from transaction proxy server
+    virtual void on_proxy_disconnect( manager * );
+
     // on completion of (re)bootstrap of accounts following (re)connect
     virtual void on_init( manager * );
 
@@ -40,6 +46,7 @@ namespace pc
   // pyth-client connection management and event loop
   class manager : public key_store,
                   public net_accept,
+                  public tpu_sub,
                   public rpc_sub,
                   public rpc_sub_i<rpc::slot_subscribe>,
                   public rpc_sub_i<rpc::get_recent_block_hash>
@@ -52,6 +59,10 @@ namespace pc
     // solana rpc http connection
     void set_rpc_host( const std::string& );
     std::string get_rpc_host() const;
+
+    // pyth transaction proxy host
+    void set_proxy_host( const std::string& );
+    std::string get_proxy_host() const;
 
     // server listening port
     void set_listen_port( int port );
@@ -106,6 +117,7 @@ namespace pc
 
     // submit pyth client api request
     void submit( request * );
+    void submit( tpu_request * );
 
     // check status condition
     bool has_status( int status ) const;
@@ -135,6 +147,10 @@ namespace pc
     void del_map_sub();
     void schedule( price_sched* );
     void write( pc_pub_key_t *, pc_acc_t *ptr );
+
+    // tpu_sub callbacks
+    void on_connect() override;
+    void on_disconnect() override;
 
     // rpc callbacks
     void on_response( rpc::slot_subscribe * );
@@ -176,12 +192,14 @@ namespace pc
     ws_connect   wconn_;    // rpc websocket sonnection
     tcp_listen   lsvr_;     // listening socket
     rpc_client   clnt_;     // rpc api
+    tpu_connect  tconn_;    // tx proxy connection
     user_list_t  olist_;    // open users list
     user_list_t  dlist_;    // to-be-deleted users list
     req_list_t   plist_;    // pending requests
     map_vec_t    mvec_;     // mapping account updates
     acc_map_t    amap_;     // account to symbol pricing info
     spx_vec_t    svec_;     // symbol price subscriber/publishers
+    std::string  phost_;    // tx proxy host
     std::string  rhost_;    // rpc host
     std::string  cdir_;     // content directory
     manager_sub *sub_;      // subscription callback

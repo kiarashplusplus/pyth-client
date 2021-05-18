@@ -17,6 +17,8 @@
 #define PC_RPC_ERROR_NO_SNAPSHOT               -32008
 #define PC_RPC_ERROR_LONG_TERM_SLOT_SKIPPED    -32009
 
+#define PC_TPU_PROTO_ID 0xb1ab
+
 namespace pc
 {
 
@@ -209,6 +211,20 @@ namespace pc
     int         ec_;
     int64_t     sent_ts_;
     int64_t     recv_ts_;
+  };
+
+  struct tpu_hdr
+  {
+    uint16_t proto_id_;
+    uint16_t size_;
+  };
+
+  // transaction builder
+  class tpu_request : public error
+  {
+  public:
+    virtual ~tpu_request();
+    virtual void build( net_wtr& ) = 0;
   };
 
   class rpc_subscription : public rpc_request
@@ -698,9 +714,8 @@ namespace pc
       signature  sig_;
     };
 
-
     // set new component price
-    class upd_price : public rpc_request
+    class upd_price : public tpu_request
     {
     public:
       upd_price();
@@ -711,12 +726,8 @@ namespace pc
       void set_block_hash( hash * );
       void set_price( int64_t px, uint64_t conf, symbol_status,
                       uint64_t pub_slot, bool is_aggregate );
+      void build( net_wtr& ) override;
 
-      // results
-      signature *get_signature();
-
-      void request( json_wtr& ) override;
-      void response( const jtree& ) override;
     private:
       hash         *bhash_;
       key_pair     *pkey_;
@@ -727,7 +738,6 @@ namespace pc
       uint64_t      pub_slot_;;
       command_t     cmd_;
       symbol_status st_;
-      signature     sig_;
     };
 
   }

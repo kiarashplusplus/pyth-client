@@ -3,6 +3,7 @@
 
 using namespace pc;
 
+#define PC_TPU_PROXY_PORT     8898
 #define PC_RPC_HTTP_PORT      8899
 #define PC_RPC_WEBSOCKET_PORT 8900
 #define PC_RECONNECT_TIMEOUT  (120L*1000000000L)
@@ -21,6 +22,14 @@ void manager_sub::on_connect( manager * )
 }
 
 void manager_sub::on_disconnect( manager * )
+{
+}
+
+void manager_sub::on_proxy_connect( manager * )
+{
+}
+
+void manager_sub::on_proxy_disconnect( manager * )
 {
 }
 
@@ -51,6 +60,7 @@ manager::manager()
   do_cap_( false ),
   is_pub_( false )
 {
+  tconn_.set_sub( this );
   breq_->set_sub( this );
   sreq_->set_sub( this );
 }
@@ -93,6 +103,16 @@ void manager::set_rpc_host( const std::string& rhost )
 std::string manager::get_rpc_host() const
 {
   return rhost_;
+}
+
+void manager::set_proxy_host( const std::string& phost )
+{
+  phost_ = phost;
+}
+
+std::string manager::get_proxy_host() const
+{
+  return phost_;
 }
 
 void manager::set_capture_file( const std::string& cap_file )
@@ -235,8 +255,18 @@ bool manager::init()
   wconn_.set_host( rhost_ );
   wconn_.set_net_loop( &nl_ );
   clnt_.set_ws_conn( &wconn_ );
-  hconn_.init();
-  wconn_.init();
+  tconn_.set_port( PC_TPU_PROXY_PORT );
+  tconn_.set_host( phost_ );
+  tconn_.set_net_loop( &nl_ );
+  if ( !hconn_.init() ) {
+    return set_err_msg( hconn_.get_err_msg() );
+  }
+  if ( !wconn_.init() ) {
+    return set_err_msg( wconn_.get_err_msg() );
+  }
+  if ( !tconn_.init() ) {
+    return set_err_msg( tconn_.get_err_msg() );
+  }
   wait_conn_ = true;
 
   // initialize listening port if port defined
@@ -319,6 +349,7 @@ void manager::poll( bool do_wait )
     if ( has_status( PC_PYTH_RPC_CONNECTED ) ) {
       hconn_.poll();
       wconn_.poll();
+      tconn_.poll();
     }
     if ( lsvr_.get_port() ) {
       lsvr_.poll();
@@ -345,6 +376,8 @@ void manager::poll( bool do_wait )
 
   // get current time
   curr_ts_ = get_now();
+
+  // TODO: check if we're receving pyth proxy heartbeats
 
   // submit new quotes while connected
   if ( has_status( PC_PYTH_RPC_CONNECTED ) &&
@@ -582,6 +615,31 @@ void manager::submit( request *req )
   req->set_manager( this );
   req->set_rpc_client( &clnt_ );
   plist_.add( req );
+}
+
+void manager::submit( tpu_request *req )
+{
+  net_wtr msg;
+  req->build( msg );
+  tconn_.add_send( msg );
+}
+
+void manager::on_connect()
+{
+  // callback user with connection status
+  PC_LOG_INF( "proxy connected" ).end();
+  if ( sub_ ) {
+    sub_->on_proxy_connect( this );
+  }
+}
+
+void manager::on_disconnect()
+{
+  // callback user with connection status
+  PC_LOG_INF( "proxy disconnected" ).end();
+  if ( sub_ ) {
+    sub_->on_proxy_disconnect( this );
+  }
 }
 
 void manager::add_product( const pub_key&acc )

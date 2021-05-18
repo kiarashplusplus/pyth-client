@@ -608,16 +608,12 @@ static bool get_hname_addr( const std::string& name, sockaddr *saddr )
   addrinfo hints[1];
   memset( hints, 0, sizeof( addrinfo ) );
   hints->ai_family   = AF_INET;
-  hints->ai_socktype = SOCK_STREAM;
-  hints->ai_protocol = IPPROTO_TCP;
   addrinfo *ainfo[1] = { nullptr };
   if ( 0 > ::getaddrinfo( name.c_str(), nullptr, nullptr, ainfo ) ) {
     return false;
   }
   for( addrinfo *aptr = ainfo[0]; aptr; aptr = aptr->ai_next ) {
-    if ( aptr->ai_family == hints->ai_family &&
-         aptr->ai_socktype == hints->ai_socktype &&
-         aptr->ai_protocol == hints->ai_protocol ) {
+    if ( aptr->ai_family == hints->ai_family ) {
       __builtin_memcpy( saddr, aptr->ai_addr, sizeof( sockaddr ) );
       has_addr = true;
       break;
@@ -803,10 +799,10 @@ bool udp_socket::init()
   return true;
 }
 
-void udp_socket::send( ip_addr *ap, net_buf *bptr )
+void udp_socket::send( ip_addr *ap, const char *buf, size_t len )
 {
   sockaddr *saddr = (sockaddr*)ap->buf_;
-  int rc = ::sendto( get_fd(), bptr->buf_, bptr->size_, MSG_NOSIGNAL,
+  int rc = ::sendto( get_fd(), buf, len, MSG_NOSIGNAL,
       saddr, sizeof( sockaddr_in ) );
   if ( PC_UNLIKELY( rc < 0 ) ) {
     set_err_msg( "failed to send udp", errno );
@@ -1094,6 +1090,77 @@ void http_server::upgrade_ws()
 
 void http_server::parse_content( const char *, size_t )
 {
+}
+
+///////////////////////////////////////////////////////////////////////////
+// tpu_connect
+
+tpu_sub::~tpu_sub()
+{
+}
+
+tpu_connect::tpu_connect()
+: has_conn_( false ),
+  wait_conn_( true ),
+  cts_( 0L ),
+  ctimeout_( 0L ),
+  sub_( nullptr )
+{
+}
+
+void tpu_connect::set_sub( tpu_sub*sub )
+{
+  sub_ = sub;
+}
+
+void tpu_connect::poll()
+{
+  if ( has_conn_ && !get_is_err() ) {
+    if ( get_is_send() ) {
+      poll_send();
+    }
+  } else {
+    reconnect();
+  }
+}
+
+void tpu_connect::reconnect()
+{
+  // waiting to connect
+  if ( get_is_wait() ) {
+    check();
+    if ( get_is_wait() ) {
+      return;
+    }
+  }
+
+  // check for successful (re)connect
+  if ( !get_is_err() ) {
+    has_conn_ = true;
+    ctimeout_ = PC_NSECS_IN_SEC;
+    if ( sub_ ) sub_->on_connect();
+    return;
+  }
+
+  // log failure to reconnect
+  if ( wait_conn_ || has_conn_ ) {
+    wait_conn_ = false;
+    if ( sub_ ) sub_->on_disconnect();
+  }
+
+  // wait for reconnect timeout
+  has_conn_ = false;
+  int64_t ts = get_now();
+  if ( ctimeout_ > (ts-cts_) ) {
+    return;
+  }
+
+  // attempt to reconnect
+  cts_ = ts;
+  ctimeout_ += ctimeout_;
+  ctimeout_ = std::min( ctimeout_, 120L*PC_NSECS_IN_SEC );
+  wait_conn_ = true;
+  init();
 }
 
 ///////////////////////////////////////////////////////////////////////////
