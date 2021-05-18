@@ -1797,7 +1797,7 @@ void rpc::del_publisher::response( const jtree& jt )
 
 ///////////////////////////////////////////////////////////////////////////
 
-tpu_request::~tpu_request()
+tx_request::~tx_request()
 {
 }
 
@@ -1847,7 +1847,7 @@ void rpc::upd_price::set_price( int64_t px,
   cmd_   = is_agg?e_cmd_agg_price:e_cmd_upd_price;
 }
 
-class tpu_wtr : public net_wtr
+class tx_wtr : public net_wtr
 {
 public:
   void init( bincode& tx ) {
@@ -1856,7 +1856,7 @@ public:
     tx.add( (uint16_t)0 );
   }
   void commit( bincode& tx ) {
-    tpu_hdr *hdr = (tpu_hdr*)hd_->buf_;
+    tx_hdr *hdr = (tx_hdr*)hd_->buf_;
     hd_->size_ = tx.size();
     hdr->size_ = tx.size();
   }
@@ -1866,7 +1866,7 @@ void rpc::upd_price::build( net_wtr& wtr )
 {
   // construct binary transaction and add header
   bincode tx;
-  ((tpu_wtr&)wtr).init( tx );
+  ((tx_wtr&)wtr).init( tx );
 
   // signatures section
   tx.add_len<1>();      // one signature (publish)
@@ -1909,5 +1909,5 @@ void rpc::upd_price::build( net_wtr& wtr )
 
   // all accounts need to sign transaction
   tx.sign( pub_idx, tx_idx, *pkey_ );
-  ((tpu_wtr&)wtr).commit( tx );
+  ((tx_wtr&)wtr).commit( tx );
 }

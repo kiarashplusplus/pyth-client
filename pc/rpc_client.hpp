@@ -213,17 +213,17 @@ namespace pc
     int64_t     recv_ts_;
   };
 
-  struct tpu_hdr
+  struct tx_hdr
   {
     uint16_t proto_id_;
     uint16_t size_;
   };
 
   // transaction builder
-  class tpu_request : public error
+  class tx_request : public error
   {
   public:
-    virtual ~tpu_request();
+    virtual ~tx_request();
     virtual void build( net_wtr& ) = 0;
   };
 
@@ -715,7 +715,7 @@ namespace pc
     };
 
     // set new component price
-    class upd_price : public tpu_request
+    class upd_price : public tx_request
     {
     public:
       upd_price();

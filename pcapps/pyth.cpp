@@ -57,9 +57,15 @@ int usage()
   std::cerr << "options include:" << std::endl;
   std::cerr << "  -r <rpc_host (default " << get_rpc_host() << ")>"
              << std::endl;
+  std::cerr << "     Host name or IP address of solana rpc node in the form "
+               "host_name[:rpc_port[:ws_port]]\n" << std::endl;
   std::cerr << "  -k <key_store_directory (default "
             << get_key_store() << ">" << std::endl;
+  std::cerr << "     Directory name housing publishing, mapping and program"
+               " key files\n" << std::endl;
   std::cerr << "  -c <commitment_level (default confirmed)>" << std::endl;
+  std::cerr << "     Options include processed, confirmed and finalized\n"
+            << std::endl;
   return 1;
 }
 
@@ -108,6 +114,7 @@ int submit_request( const std::string& rpc_host,
   manager mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_dir( key_dir );
+  mgr.set_do_tx( false );
   if ( !mgr.init() || !mgr.bootstrap() ) {
     std::cerr << "pyth: " << mgr.get_err_msg() << std::endl;
     return 1;
@@ -215,6 +222,7 @@ int on_init_mapping( int argc, char **argv )
   manager mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_dir( key_dir );
+  mgr.set_do_tx( false );
   if ( !mgr.init() || !mgr.bootstrap() ) {
     std::cerr << "pyth: " << mgr.get_err_msg() << std::endl;
     return 1;
@@ -360,6 +368,7 @@ int on_add_product( int argc, char **argv )
   manager mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_dir( key_dir );
+  mgr.set_do_tx( false );
   if ( !mgr.init() || !mgr.bootstrap() ) {
     std::cerr << "pyth: " << mgr.get_err_msg() << std::endl;
     return 1;
@@ -447,6 +456,7 @@ int on_upd_product( int argc, char **argv )
   manager mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_dir( key_dir );
+  mgr.set_do_tx( false );
   if ( !mgr.init() || !mgr.bootstrap() ) {
     std::cerr << "pyth: " << mgr.get_err_msg() << std::endl;
     return 1;
@@ -523,6 +533,7 @@ int on_add_price( int argc, char **argv )
   manager mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_dir( key_dir );
+  mgr.set_do_tx( false );
   if ( !mgr.init() || !mgr.bootstrap() ) {
     std::cerr << "pyth: " << mgr.get_err_msg() << std::endl;
     return 1;
@@ -616,6 +627,7 @@ int on_init_price( int argc, char **argv )
   manager mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_dir( key_dir );
+  mgr.set_do_tx( false );
   if ( !mgr.init() || !mgr.bootstrap() ) {
     std::cerr << "pyth: " << mgr.get_err_msg() << std::endl;
     return 1;
@@ -691,6 +703,7 @@ int on_upd_price( int argc, char **argv )
   manager mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_dir( key_dir );
+  mgr.set_do_tx( false );
   if ( !mgr.init() || !mgr.bootstrap() ) {
     std::cerr << "pyth: " << mgr.get_err_msg() << std::endl;
     return 1;
@@ -756,6 +769,7 @@ int on_upd_publisher( int argc, char **argv, bool is_add )
   manager mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_dir( key_dir );
+  mgr.set_do_tx( false );
   if ( !mgr.init() || !mgr.bootstrap() ) {
     std::cerr << "pyth: " << mgr.get_err_msg() << std::endl;
     return 1;
@@ -840,6 +854,7 @@ int on_get_product_list( int argc, char **argv )
   manager mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_dir( key_dir );
+  mgr.set_do_tx( false );
   if ( !mgr.init() || !mgr.bootstrap() ) {
     std::cerr << "pyth: " << mgr.get_err_msg() << std::endl;
     return 1;
@@ -884,6 +899,7 @@ int on_get_product( int argc, char **argv )
   manager mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_dir( key_dir );
+  mgr.set_do_tx( false );
   if ( !mgr.init() || !mgr.bootstrap() ) {
     std::cerr << "pyth: " << mgr.get_err_msg() << std::endl;
     return 1;

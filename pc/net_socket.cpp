@@ -1093,38 +1093,32 @@ void http_server::parse_content( const char *, size_t )
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// tpu_connect
+// tx_connect
 
-tpu_sub::~tpu_sub()
+tx_sub::~tx_sub()
 {
 }
 
-tpu_connect::tpu_connect()
+tx_connect::tx_connect()
 : has_conn_( false ),
   wait_conn_( true ),
   cts_( 0L ),
-  ctimeout_( 0L ),
+  ctimeout_( PC_NSECS_IN_SEC ),
   sub_( nullptr )
 {
 }
 
-void tpu_connect::set_sub( tpu_sub*sub )
+bool tx_connect::get_is_connect() const
+{
+  return has_conn_;
+}
+
+void tx_connect::set_sub( tx_sub*sub )
 {
   sub_ = sub;
 }
 
-void tpu_connect::poll()
-{
-  if ( has_conn_ && !get_is_err() ) {
-    if ( get_is_send() ) {
-      poll_send();
-    }
-  } else {
-    reconnect();
-  }
-}
-
-void tpu_connect::reconnect()
+void tx_connect::reconnect()
 {
   // waiting to connect
   if ( get_is_wait() ) {
@@ -1188,6 +1182,7 @@ bool ws_connect::init()
   http_request msg;
   msg.init( "GET", "/" );
   msg.add_hdr( "Connection", "Upgrade" );
+  msg.add_hdr( "Upgrade", "websocket" );
   msg.add_hdr( "Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==" );
   msg.add_hdr( "Sec-WebSocket-Version", "13" );
   msg.commit();

@@ -354,28 +354,28 @@ namespace pc
     void commit( uint8_t opcode, net_wtr&, bool mask );
   };
 
-  class tpu_sub
+  class tx_sub
   {
   public:
-    virtual ~tpu_sub();
+    virtual ~tx_sub();
     virtual void on_connect() = 0;
     virtual void on_disconnect() =0;
   };
 
   // tpu prox connection
-  class tpu_connect : public tcp_connect
+  class tx_connect : public tcp_connect
   {
   public:
-    tpu_connect();
-    void set_sub( tpu_sub* );
-    void poll() override;
-  private:
+    tx_connect();
+    bool get_is_connect() const;
+    void set_sub( tx_sub* );
     void reconnect();
+  private:
     bool    has_conn_;
     bool    wait_conn_;
     int64_t cts_;
     int64_t ctimeout_;
-    tpu_sub*sub_;
+    tx_sub *sub_;
   };
 
   // websocket client connection

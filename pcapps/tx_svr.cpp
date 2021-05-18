@@ -1,42 +1,41 @@
-#include "proxy.hpp"
+#include "tx_svr.hpp"
 #include <pc/log.hpp>
 
 #define PC_TPU_PROXY_PORT     8898
 #define PC_RPC_HTTP_PORT      8899
-#define PC_RPC_WEBSOCKET_PORT 8900
 #define PC_RECONNECT_TIMEOUT  (120L*1000000000L)
 
 using namespace pc;
 
 ///////////////////////////////////////////////////////////////////////////
-// proxy_user
+// tx_user
 
-proxy_user::proxy_user()
+tx_user::tx_user()
 {
   set_net_parser( this );
 }
 
-void proxy_user::set_proxy( proxy *mgr )
+void tx_user::set_tx_svr( tx_svr *mgr )
 {
   mgr_ = mgr;
 }
 
-bool proxy_user::parse( const char *buf, size_t sz, size_t&len  )
+bool tx_user::parse( const char *buf, size_t sz, size_t&len  )
 {
-  tpu_hdr *hdr = (tpu_hdr*)buf;
-  if ( PC_UNLIKELY( sz < sizeof( tpu_hdr) || sz < hdr->size_ ) ) {
+  tx_hdr *hdr = (tx_hdr*)buf;
+  if ( PC_UNLIKELY( sz < sizeof( tx_hdr) || sz < hdr->size_ ) ) {
     return false;
   }
   if ( PC_UNLIKELY( hdr->proto_id_ != PC_TPU_PROTO_ID ) ) {
     teardown();
     return false;
   }
-  mgr_->submit( (const char*)&hdr[1], hdr->size_ - sizeof( tpu_hdr ) );
+  mgr_->submit( (const char*)&hdr[1], hdr->size_ - sizeof( tx_hdr ) );
   len = hdr->size_;
   return true;
 }
 
-void proxy_user::teardown()
+void tx_user::teardown()
 {
   net_connect::teardown();
 
@@ -45,9 +44,9 @@ void proxy_user::teardown()
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// proxy
+// tx_svr
 
-proxy::proxy()
+tx_svr::tx_svr()
 : has_curr_( false ),
   has_next_( false ),
   has_conn_( false ),
@@ -64,44 +63,51 @@ proxy::proxy()
   lreq_->set_limit( 32 );
 }
 
-proxy::~proxy()
+tx_svr::~tx_svr()
 {
   teardown();
 }
 
-void proxy::set_rpc_host( const std::string& rhost )
+void tx_svr::set_rpc_host( const std::string& rhost )
 {
   rhost_ = rhost;
 }
 
-std::string proxy::get_rpc_host() const
+std::string tx_svr::get_rpc_host() const
 {
   return rhost_;
 }
 
-void proxy::set_listen_port( int port )
+void tx_svr::set_listen_port( int port )
 {
   tsvr_.set_port( port );
 }
 
-int proxy::get_listen_port() const
+int tx_svr::get_listen_port() const
 {
   return tsvr_.get_port();
 }
 
-bool proxy::init()
+bool tx_svr::init()
 {
   // initialize net_loop
   if ( !nl_.init() ) {
     return set_err_msg( nl_.get_err_msg() );
   }
+
+  // decompose rpc_host into host:port[:port2]
+  int rport =0, wport = 0;
+  std::string rhost = get_host_port( rhost_, rport, wport );
+  if ( rport == 0 ) rport = PC_RPC_HTTP_PORT;
+  if ( wport == 0 ) wport = rport+1;
+
   // add rpc_client connection to net_loop and initialize
-  hconn_.set_port( PC_RPC_HTTP_PORT );
-  hconn_.set_host( rhost_ );
+  hconn_.set_port( rport );
+  hconn_.set_host( rhost );
   hconn_.set_net_loop( &nl_ );
   clnt_.set_http_conn( &hconn_ );
-  wconn_.set_port( PC_RPC_WEBSOCKET_PORT );
-  wconn_.set_host( rhost_ );
+  wconn_.set_port( wport );
+  wconn_.set_host( rhost );
   wconn_.set_net_loop( &nl_ );
   clnt_.set_ws_conn( &wconn_ );
   if ( !hconn_.init() ) {
@@ -124,7 +130,7 @@ bool proxy::init()
   return true;
 }
 
-void proxy::poll()
+void tx_svr::poll()
 {
   // epoll loop
   nl_.poll( 1 );
@@ -139,29 +145,29 @@ void proxy::poll()
   }
 }
 
-void proxy::del_user( proxy_user *usr )
+void tx_svr::del_user( tx_user *usr )
 {
   // move usr from open clist to delete list
   olist_.del( usr );
   dlist_.add( usr );
 }
 
-void proxy::teardown_users()
+void tx_svr::teardown_users()
 {
   while( !dlist_.empty() ) {
-    proxy_user *usr = dlist_.first();
+    tx_user *usr = dlist_.first();
     PC_LOG_DBG( "delete_user" ).add("fd", usr->get_fd() ).end();
     usr->close();
     dlist_.del( usr );
   }
 }
 
-void proxy::accept( int fd )
+void tx_svr::accept( int fd )
 {
   // create and add new user
-  proxy_user *usr = new proxy_user;
+  tx_user *usr = new tx_user;
   usr->set_net_loop( &nl_ );
-  usr->set_proxy( this );
+  usr->set_tx_svr( this );
   usr->set_fd( fd );
   usr->set_block( false );
   if ( usr->init() ) {
@@ -173,7 +179,7 @@ void proxy::accept( int fd )
   }
 }
 
-void proxy::submit( const char *buf, size_t len )
+void tx_svr::submit( const char *buf, size_t len )
 {
   // send to current leader
   if ( has_curr_ ) {
@@ -186,7 +192,7 @@ void proxy::submit( const char *buf, size_t len )
   }
 }
 
-void proxy::on_response( rpc::slot_subscribe *res )
+void tx_svr::on_response( rpc::slot_subscribe *res )
 {
   // ignore slots that go back in time
   uint64_t slot = res->get_slot();
@@ -217,7 +223,7 @@ void proxy::on_response( rpc::slot_subscribe *res )
   }
 }
 
-void proxy::on_response( rpc::get_cluster_nodes *m )
+void tx_svr::on_response( rpc::get_cluster_nodes *m )
 {
   if ( m->get_is_err() ) {
     set_err_msg( "failed to get cluster nodes["
@@ -227,7 +233,7 @@ void proxy::on_response( rpc::get_cluster_nodes *m )
   PC_LOG_DBG( "received get_cluster_nodes" ).end();
 }
 
-void proxy::on_response( rpc::get_slot_leaders *m )
+void tx_svr::on_response( rpc::get_slot_leaders *m )
 {
   if ( m->get_is_err() ) {
     set_err_msg( "failed to get slot leaders ["
@@ -237,7 +243,7 @@ void proxy::on_response( rpc::get_slot_leaders *m )
   PC_LOG_DBG( "received get_slot_leaders" ).end();
 }
 
-void proxy::reconnect_rpc()
+void tx_svr::reconnect_rpc()
 {
   // check if connection process has complete
   if ( hconn_.get_is_wait() ) {
@@ -288,7 +294,7 @@ void proxy::reconnect_rpc()
   wconn_.init();
 }
 
-void proxy::log_disconnect()
+void tx_svr::log_disconnect()
 {
   if ( hconn_.get_is_err() ) {
     PC_LOG_ERR( "rpc_http_reset")
@@ -308,16 +314,16 @@ void proxy::log_disconnect()
   }
 }
 
-void proxy::teardown()
+void tx_svr::teardown()
 {
-  PC_LOG_INF( "pyth_proxy_teardown" ).end();
+  PC_LOG_INF( "pyth_tx_svr_teardown" ).end();
 
   // shutdown listener
   tsvr_.close();
 
   // destroy any open users
   while( !olist_.empty() ) {
-    proxy_user *usr = olist_.first();
+    tx_user *usr = olist_.first();
     olist_.del( usr );
     dlist_.add( usr );
   }

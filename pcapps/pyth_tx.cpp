@@ -1,4 +1,4 @@
-#include "proxy.hpp"
+#include "tx_svr.hpp"
 #include <pc/log.hpp>
 #include <pc/misc.hpp>
 #include <unistd.h>
@@ -7,7 +7,7 @@
 
 using namespace pc;
 
-// pyth proxy server for forwarding transactions to
+// pyth tx_svr server for forwarding transactions to
 // current and next leader in schedule
 
 std::string get_rpc_host()
@@ -22,7 +22,7 @@ int get_port()
 
 int usage()
 {
-  std::cerr << "usage: pyth_proxy <options>" << std::endl;
+  std::cerr << "usage: pyth_tx_svr <options>" << std::endl;
   std::cerr << "options include:" << std::endl;
   std::cerr << "  -r <rpc_host (default " << get_rpc_host() << ")>"
             << std::endl;
@@ -70,18 +70,18 @@ int main(int argc, char **argv)
   // set up logging and disable SIGPIPE
   signal( SIGPIPE, SIG_IGN );
   if ( !log_file.empty() && !log::set_log_file( log_file ) ) {
-    std::cerr << "pythd: failed to create log_file="
+    std::cerr << "pyth_tx: failed to create log_file="
               << log_file << std::endl;
     return 1;
   }
   log::set_level( do_debug ? PC_LOG_DBG_LVL : PC_LOG_INF_LVL );
 
-  // construct and initialize proxy server
-  proxy mgr;
+  // construct and initialize tx_svr server
+  tx_svr mgr;
   mgr.set_rpc_host( rpc_host );
   mgr.set_listen_port( pyth_port );
   if ( !mgr.init() ) {
-    std::cerr << "pyth_proxy: " << mgr.get_err_msg() << std::endl;
+    std::cerr << "pyth_tx: " << mgr.get_err_msg() << std::endl;
     return 1;
   }
 
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
   }
   int retcode = 0;
   if ( mgr.get_is_err() ) {
-    std::cerr << "pyth_proxy: " << mgr.get_err_msg() << std::endl;
+    std::cerr << "pyth_tx: " << mgr.get_err_msg() << std::endl;
     retcode = 1;
   }
   return retcode;

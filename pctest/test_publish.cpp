@@ -21,6 +21,12 @@ public:
   // on completion of (re)bootstrap of accounts following (re)connect
   void on_init( pc::manager * ) override;
 
+  // on connection to proxy publisher
+  void on_proxy_connect( pc::manager * );
+
+  // on disconnect from proxy publisher
+  void on_proxy_disconnect( pc::manager * );
+
   // construct publishers on addition of new symbols
   void on_add_symbol( pc::manager *, pc::price * ) override;
 
@@ -115,6 +121,16 @@ void test_connect::on_disconnect( pc::manager * )
 void test_connect::on_init( pc::manager * )
 {
   PC_LOG_INF( "test_connect: initialized" ).end();
+}
+
+void test_connect::on_proxy_connect( pc::manager * )
+{
+  PC_LOG_INF( "test_connect: proxy connected" ).end();
+}
+
+void test_connect::on_proxy_disconnect( pc::manager * )
+{
+  PC_LOG_INF( "test_connect: proxy disconnected" ).end();
 }
 
 void test_connect::on_add_symbol( pc::manager *, pc::price *sym )
@@ -337,9 +353,11 @@ int main(int argc, char** argv)
   std::string cap_file, log_file;
   std::string rpc_host = get_rpc_host();
   std::string key_dir  = get_key_store();
+  std::string tx_host  = get_rpc_host();
   while( (opt = ::getopt(argc,argv, "r:k:c:l:ndh" )) != -1 ) {
     switch(opt) {
       case 'r': rpc_host = optarg; break;
+      case 't': tx_host = optarg; break;
       case 'k': key_dir = optarg; break;
       case 'c': cap_file = optarg; break;
       case 'l': log_file = optarg; break;
@@ -368,6 +386,7 @@ int main(int argc, char** argv)
   // initialize connection to solana validator and bootstrap symbol list
   pc::manager mgr;
   mgr.set_rpc_host( rpc_host );
+  mgr.set_tx_host( tx_host );
   mgr.set_dir( key_dir );
   mgr.set_manager_sub( &sub );
   mgr.set_capture_file( cap_file );

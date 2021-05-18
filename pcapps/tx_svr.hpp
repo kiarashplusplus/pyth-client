@@ -7,35 +7,35 @@
 namespace pc
 {
 
-  class proxy;
+  class tx_svr;
 
-  class proxy_user : public prev_next<proxy_user>,
-                     public net_connect,
-                     public net_parser
+  class tx_user : public prev_next<tx_user>,
+                  public net_connect,
+                  public net_parser
   {
   public:
-    proxy_user();
-    void set_proxy( proxy * );
+    tx_user();
+    void set_tx_svr( tx_svr * );
     // tx update
     bool parse( const char *buf, size_t sz, size_t& len ) override;
-    // proxy disconnected
+    // tx_svr disconnected
     void teardown() override;
   private:
-    proxy *mgr_;
+    tx_svr *mgr_;
   };
 
-  // proxy server run as a busy loop
-  class proxy : public error,
-                public net_accept,
-                public rpc_sub,
-                public rpc_sub_i<rpc::slot_subscribe>,
-                public rpc_sub_i<rpc::get_cluster_nodes>,
-                public rpc_sub_i<rpc::get_slot_leaders>
+  // tx_svr server run as a busy loop
+  class tx_svr : public error,
+                 public net_accept,
+                 public rpc_sub,
+                 public rpc_sub_i<rpc::slot_subscribe>,
+                 public rpc_sub_i<rpc::get_cluster_nodes>,
+                 public rpc_sub_i<rpc::get_slot_leaders>
   {
   public:
 
-    proxy();
-    virtual ~proxy();
+    tx_svr();
+    virtual ~tx_svr();
 
     // solana rpc http connection
     void set_rpc_host( const std::string& );
@@ -48,7 +48,7 @@ namespace pc
     // initialize
     bool init();
 
-    // poll for proxy updates
+    // poll for tx_svr updates
     void poll();
 
     // teardown all connections
@@ -58,7 +58,7 @@ namespace pc
     void accept( int ) override;
 
     // move user to teardown list
-    void del_user( proxy_user *usr );
+    void del_user( tx_user *usr );
 
     // send tpu request
     void submit( const char *buf, size_t len );
@@ -70,7 +70,7 @@ namespace pc
 
   private:
 
-    typedef dbl_list<proxy_user> user_list_t;
+    typedef dbl_list<tx_user> user_list_t;
 
     void reconnect_rpc();
     void log_disconnect();

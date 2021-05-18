@@ -5,10 +5,10 @@ using namespace pc;
 
 #define PC_TPU_PROXY_PORT     8898
 #define PC_RPC_HTTP_PORT      8899
-#define PC_RPC_WEBSOCKET_PORT 8900
 #define PC_RECONNECT_TIMEOUT  (120L*1000000000L)
 #define PC_BLOCKHASH_TIMEOUT  3
 #define PC_PUB_INTERVAL       (293L*PC_NSECS_IN_MSEC)
+#define PC_RPC_HOST           "localhost"
 
 ///////////////////////////////////////////////////////////////////////////
 // manager_sub
@@ -25,11 +25,11 @@ void manager_sub::on_disconnect( manager * )
 {
 }
 
-void manager_sub::on_proxy_connect( manager * )
+void manager_sub::on_tx_connect( manager * )
 {
 }
 
-void manager_sub::on_proxy_disconnect( manager * )
+void manager_sub::on_tx_disconnect( manager * )
 {
 }
 
@@ -45,7 +45,9 @@ void manager_sub::on_add_symbol( manager *, price * )
 // manager
 
 manager::manager()
-: sub_( nullptr ),
+: thost_( PC_RPC_HOST ),
+  rhost_( PC_RPC_HOST ),
+  sub_( nullptr ),
   status_( 0 ),
   num_sub_( 0 ),
   kidx_( (unsigned)-1 ),
@@ -58,6 +60,7 @@ manager::manager()
   pub_int_( PC_PUB_INTERVAL ),
   wait_conn_( false ),
   do_cap_( false ),
+  do_tx_( true ),
   is_pub_( false )
 {
   tconn_.set_sub( this );
@@ -105,14 +108,24 @@ std::string manager::get_rpc_host() const
   return rhost_;
 }
 
-void manager::set_proxy_host( const std::string& phost )
+void manager::set_tx_host( const std::string& thost )
 {
-  phost_ = phost;
+  thost_ = thost;
 }
 
-std::string manager::get_proxy_host() const
+std::string manager::get_tx_host() const
 {
-  return phost_;
+  return thost_;
+}
+
+void manager::set_do_tx( bool do_tx )
+{
+  do_tx_ = do_tx;
+}
+
+bool manager::get_do_tx() const
+{
+  return do_tx_;
 }
 
 void manager::set_capture_file( const std::string& cap_file )
@@ -246,26 +259,35 @@ bool manager::init()
     return set_err_msg( nl_.get_err_msg() );
   }
 
+  // decompose rpc_host into host:port
+  int rport =0, wport = 0;
+  std::string rhost = get_host_port( rhost_, rport, wport );
+  if ( rport == 0 ) rport = PC_RPC_HTTP_PORT;
+  if ( wport == 0 ) wport = rport+1;
+
   // add rpc_client connection to net_loop and initialize
-  hconn_.set_port( PC_RPC_HTTP_PORT );
-  hconn_.set_host( rhost_ );
+  hconn_.set_port( rport );
+  hconn_.set_host( rhost );
   hconn_.set_net_loop( &nl_ );
   clnt_.set_http_conn( &hconn_ );
-  wconn_.set_port( PC_RPC_WEBSOCKET_PORT );
-  wconn_.set_host( rhost_ );
+  wconn_.set_port( wport );
+  wconn_.set_host( rhost );
   wconn_.set_net_loop( &nl_ );
   clnt_.set_ws_conn( &wconn_ );
-  tconn_.set_port( PC_TPU_PROXY_PORT );
-  tconn_.set_host( phost_ );
-  tconn_.set_net_loop( &nl_ );
   if ( !hconn_.init() ) {
     return set_err_msg( hconn_.get_err_msg() );
   }
   if ( !wconn_.init() ) {
     return set_err_msg( wconn_.get_err_msg() );
   }
-  if ( !tconn_.init() ) {
-    return set_err_msg( tconn_.get_err_msg() );
+  // connect to pyth_tx server
+  if ( do_tx_ ) {
+    tconn_.set_port( PC_TPU_PROXY_PORT );
+    tconn_.set_host( thost_ );
+    tconn_.set_net_loop( &nl_ );
+    if ( !tconn_.init() ) {
+      return set_err_msg( tconn_.get_err_msg() );
+    }
   }
   wait_conn_ = true;
 
@@ -349,6 +371,8 @@ void manager::poll( bool do_wait )
     if ( has_status( PC_PYTH_RPC_CONNECTED ) ) {
       hconn_.poll();
       wconn_.poll();
+    }
+    if ( do_tx_ ) {
       tconn_.poll();
     }
     if ( lsvr_.get_port() ) {
@@ -377,7 +401,10 @@ void manager::poll( bool do_wait )
   // get current time
   curr_ts_ = get_now();
 
-  // TODO: check if we're receving pyth proxy heartbeats
+  // try to (re)connect to tx proxy
+  if ( do_tx_ && ( !tconn_.get_is_connect() || tconn_.get_is_err() ) ) {
+    tconn_.reconnect();
+  }
 
   // submit new quotes while connected
   if ( has_status( PC_PYTH_RPC_CONNECTED ) &&
@@ -617,7 +644,7 @@ void manager::submit( request *req )
   plist_.add( req );
 }
 
-void manager::submit( tpu_request *req )
+void manager::submit( tx_request *req )
 {
   net_wtr msg;
   req->build( msg );
@@ -627,18 +654,18 @@ void manager::submit( tpu_request *req )
 void manager::on_connect()
 {
   // callback user with connection status
-  PC_LOG_INF( "proxy connected" ).end();
+  PC_LOG_INF( "pyth_tx_connected" ).end();
   if ( sub_ ) {
-    sub_->on_proxy_connect( this );
+    sub_->on_tx_connect( this );
   }
 }
 
 void manager::on_disconnect()
 {
   // callback user with connection status
-  PC_LOG_INF( "proxy disconnected" ).end();
+  PC_LOG_INF( "pyth_tx_reset" ).end();
   if ( sub_ ) {
-    sub_->on_proxy_disconnect( this );
+    sub_->on_tx_disconnect( this );
   }
 }
 
