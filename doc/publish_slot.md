@@ -1,15 +1,22 @@
 # Understanding publishing slots
 
-The pyth-client API forwards what it thinks is the current slot, known as the publishing slot, along with a price when it publishes a new quote to solana.  A callback is issued whenever it receives notification of a new price update on-chain.  An application can match what it sent with what it received by joining on the slot number.  This is possible because each aggregate price update includes all the component prices that comprised the aggregate and because each component price is accompanied by its publishing key and slot.
+When a quoter publishes a price, the pyth-client API also forwards what it thinks is the current slot on solana. This is known as its publishing slot.
+
+The publishing slot and price is stored as the latest update for that publisher on-chain but only if the price is for a later slot than that currently stored. This is to prevent prices from being updated out-of-order and to facilitate arbitration between multiple publishers.
+
+The aggregation algorithm only combines prices from publishers that were published within 8 slots of the current on-chain slot.
+
+Not all published prices get included in the pyth contract due to unreliable transports and the way solana formulates and reaches consensus on each slot.
+
+A quoter may detect if a published price is dropped by comparing the list of publishing slots it submits vs what it subsequently receives in each aggregate price callback.
 
 For example, here is an excerpt of a log take from a run of the test_publish.cpp example program against mainnet-beta. It logs everything it sends and everything it receives.
 
 The publishing slots of six consecutive price submissions have been annotated with the labels A, B, C, D, E and F or slots 79018079, 79018084, 79018085, 79018086, 79018087, 79018092.
 
-Please note that prices for slots 79018080 thru 79018083 and 79018088 thru 79018091 were not submitted. This is because solana does not always publish consective slots and gaps can occur.  Solana can even publish slots out-of-order, but the API ignores these and is guaranteed to issue callbacks for slots that are strictly increasing.
+The API submits a new price every time it receives notification of a new slot but note that prices for slots 79018080 thru 79018083 and 79018088 thru 79018091 were not submitted. This is because solana does not always publish consecutive slots and gaps can occur.  Solana can also publish slots out-of-order, but the API ignores these and is guaranteed only to issue callbacks for slots that are strictly increasing.
 
-Price updates occur for slots labelled A, B, C and F. Slots D and E (79018086, 79018087) were dropped and did not get executed on the chain. The pyth on-chain program guarantees that prices are added to the chain in publish-slot order by publisher.
-
+Price updates occur for slots labelled A, B, C and F. Slots D and E (79018086, 79018087) were dropped and did not get executed on the chain.
 
 ```
 [2021-05-18T22:36:14.048435Z 654359 INF submit price to block-chain             ] symbol=SYMBOL1/USD,price_type=price,price=0.116000,spread=0.001000,slot=79018079,sub_id=1
@@ -38,4 +45,10 @@ Price updates occur for slots labelled A, B, C and F. Slots D and E (79018086, 7
 [2021-05-18T22:36:22.758348Z 654359 INF submit price to block-chain             ] symbol=SYMBOL1/USD,price_type=price,price=0.125000,spread=0.001000,slot=79018096,sub_id=1
 [2021-05-18T22:36:23.121339Z 654359 INF received aggregate price update         ] symbol=SYMBOL1/USD,price_type=price,status=trading,agg_price=0.121000,agg_spread=0.001000,valid_slot=79018093,pub_slot=79018094,my_price=0.121000,my_conf=0.001000,my_status=trading,my_slot=79018092
                                                                                                                                                                                                                                                                                ^^ F ^^^
+```
+
+The API keeps track of the "hit-rate" of price submissions that show up in the update callbacks and tracks end-to-end latency statistics at the 25th, 50th, 75th and 99th percentiles both in terms of seconds of elapsed time and in number of slot updates observed. For example, from the same log:
+
+```
+[2021-05-18T22:37:26.685518Z 654359 INF publish statistics                      ] symbol=SYMBOL1/USD,price_type=price,num_sent=135,hit_rate=73.333333,secs_p25=2.000000,secs_p50=2.500000,secs_p75=3.000000,secs_p99=7.500000,slot_p25=4,slot_p50=4,slot_p75=6,slot_p99=16
 ```
