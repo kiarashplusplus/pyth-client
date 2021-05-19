@@ -780,7 +780,7 @@ ip_addr::ip_addr( str ap )
     if ( buf[i] == ':' ) {
       buf[i++] = '\0';
       sptr->sin_addr.s_addr = ::inet_addr( buf );
-      sptr->sin_port = ::htons( str_to_int( &ap.str_[i], ap.len_ - i ) );
+      sptr->sin_port = htons( str_to_int( &ap.str_[i], ap.len_ - i ) );
       break;
     }
   }
