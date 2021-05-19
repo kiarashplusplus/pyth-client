@@ -1,6 +1,6 @@
 # Understanding publishing slots
 
-test_publish forwards what it thinks is the current slot (its publishing slot) along with the price when it publishes a new quote to solana.  test_publish receives notification of all price updates on the block-chain and can match what it sent with what it received by joining on the slot number.  This can be done because aggregate price update includes all the component prices that went into computing the aggregate.  Each component price is accompanied by its publisher key and publishing slot.
+The pyth-client API forwards what it thinks is the current slot, known as the publishing slot, along with a price when it publishes a new quote to solana.  The API issues a callback when it receives notification of a price update on the block-chain.  An application can match what it sent with what it received by joining on the slot number.  This is possible because each aggregate price update includes all the component prices that comprised the aggregate.  Each component price is accompanied by its publisher key and publishing slot.
 
 Here is an excerpt of a log take from a run of the test_publish.cpp example program against mainnet-beta. It logs everything it sends and everything it receives.
 
