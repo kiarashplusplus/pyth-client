@@ -1,14 +1,15 @@
 # Understanding publishing slots
 
-The pyth-client API forwards what it thinks is the current slot, known as the publishing slot, along with a price when it publishes a new quote to solana.  The API issues a callback when it receives notification of a price update on the block-chain.  An application can match what it sent with what it received by joining on the slot number.  This is possible because each aggregate price update includes all the component prices that comprised the aggregate.  Each component price is accompanied by its publisher key and publishing slot.
+The pyth-client API forwards what it thinks is the current slot, known as the publishing slot, along with a price when it publishes a new quote to solana.  A callback is issued whenever it receives notification of a new price update on-chain.  An application can match what it sent with what it received by joining on the slot number.  This is possible because each aggregate price update includes all the component prices that comprised the aggregate and because each component price is accompanied by its publishing key and slot.
 
-Here is an excerpt of a log take from a run of the test_publish.cpp example program against mainnet-beta. It logs everything it sends and everything it receives.
+For example, here is an excerpt of a log take from a run of the test_publish.cpp example program against mainnet-beta. It logs everything it sends and everything it receives.
 
 The publishing slots of six consecutive price submissions have been annotated with the labels A, B, C, D, E and F or slots 79018079, 79018084, 79018085, 79018086, 79018087, 79018092.
 
 Please note that prices for slots 79018080 thru 79018083 and 79018088 thru 79018091 were not submitted. This is because solana does not always publish consective slots and gaps can occur.  Solana can even publish slots out-of-order, but the API ignores these and is guaranteed to issue callbacks for slots that are strictly increasing.
 
 Price updates occur for slots labelled A, B, C and F. Slots D and E (79018086, 79018087) were dropped and did not get executed on the chain. The pyth on-chain program guarantees that prices are added to the chain in publish-slot order by publisher.
+
 
 ```
 [2021-05-18T22:36:14.048435Z 654359 INF submit price to block-chain             ] symbol=SYMBOL1/USD,price_type=price,price=0.116000,spread=0.001000,slot=79018079,sub_id=1
