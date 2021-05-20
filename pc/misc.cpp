@@ -373,9 +373,22 @@ int64_t str_to_dec( const char *val, int texpo )
   return str_to_dec( val, __builtin_strlen( val ), texpo );
 }
 
-std::string get_host_port(const std::string& host, int&port1, int&port2)
+// hard-coded well-known solana end-points
+static std::string get_rpc_end_point( const std::string& rhost )
+{
+  if ( rhost == "api.devnet.solana.com" ) {
+    return rhost + ":80:80";
+  } else if ( rhost == "api.mainnet-beta.solana.com" ) {
+    return rhost + ":80:80";
+  } else {
+    return rhost;
+  }
+}
+
+std::string get_host_port(const std::string& hosti, int&port1, int&port2)
 {
   std::string res[3];
+  std::string host = get_rpc_end_point( hosti );
   port1 = port2 = 0;
   unsigned num = 0, curr = 0, prev = 0;
   for(; curr != host.length() && num<2; ++curr ) {

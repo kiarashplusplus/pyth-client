@@ -228,18 +228,6 @@ void manager::teardown()
   wconn_.close();
 }
 
-// hard-coded well-known solana end-points
-static std::string get_rpc_end_point( const std::string& rhost )
-{
-  if ( rhost == "api.devnet.solana.com" ) {
-    return rhost + ":80:80";
-  } else if ( rhost == "api.mainnet-beta.solana.com" ) {
-    return rhost + ":80:80";
-  } else {
-    return rhost;
-  }
-}
-
 bool manager::init()
 {
   // read key directory
@@ -273,8 +261,7 @@ bool manager::init()
 
   // decompose rpc_host into host:port
   int rport =0, wport = 0;
-  std::string rhost = get_host_port(
-      get_rpc_end_point( rhost_ ), rport, wport );
+  std::string rhost = get_host_port( rhost_, rport, wport );
   if ( rport == 0 ) rport = PC_RPC_HTTP_PORT;
   if ( wport == 0 ) wport = rport+1;
 
@@ -295,8 +282,10 @@ bool manager::init()
   }
   // connect to pyth_tx server
   if ( do_tx_ ) {
-    tconn_.set_port( PC_TPU_PROXY_PORT );
-    tconn_.set_host( thost_ );
+    int tport1 = 0, tport2 = 0;
+    std::string thost = get_host_port( thost_, tport1, tport2 );
+    tconn_.set_port( tport1 ? tport1 : PC_TPU_PROXY_PORT );
+    tconn_.set_host( thost );
     tconn_.set_net_loop( &nl_ );
     if ( !tconn_.init() ) {
       return set_err_msg( tconn_.get_err_msg() );

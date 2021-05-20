@@ -4,8 +4,9 @@
 #define PC_TPU_PROXY_PORT     8898
 #define PC_RPC_HTTP_PORT      8899
 #define PC_LEADER_MAX         256
-#define PC_LEADER_MIN         16
+#define PC_LEADER_MIN         32
 #define PC_RECONNECT_TIMEOUT  (120L*1000000000L)
+#define PC_HBEAT_INTERVAL     16
 
 using namespace pc;
 
@@ -53,9 +54,11 @@ tx_svr::tx_svr()
   wait_conn_( false ),
   msg_( new char[buf_len] ),
   slot_( 0UL ),
+  slot_cnt_( 0UL ),
   cts_( 0L ),
   ctimeout_( PC_NSECS_IN_SEC )
 {
+  hreq_->set_sub( this );
   sreq_->set_sub( this );
   creq_->set_sub( this );
   lreq_->set_sub( this );
@@ -120,7 +123,6 @@ bool tx_svr::init()
   if ( !tconn_.init() ) {
     return set_err_msg( tconn_.get_err_msg() );
   }
-  tsvr_.set_port(PC_TPU_PROXY_PORT );
   tsvr_.set_net_accept( this );
   tsvr_.set_net_loop( &nl_ );
   if ( !tsvr_.init() ) {
@@ -137,8 +139,10 @@ void tx_svr::poll( bool do_wait )
   if ( do_wait ) {
     nl_.poll( 1 );
   } else {
-    hconn_.poll();
-    wconn_.poll();
+    if ( has_conn_ ) {
+      hconn_.poll();
+      wconn_.poll();
+    }
     tsvr_.poll();
     for( tx_user *uptr = olist_.first(); uptr; ) {
       tx_user *nptr = uptr->get_next();
@@ -220,6 +224,11 @@ void tx_svr::on_response( rpc::slot_subscribe *res )
   }
   slot_ = slot;
 
+  // submit heartbeat every so often to keep connection alive
+  if ( slot_cnt_++ % PC_HBEAT_INTERVAL == 0 ) {
+    clnt_.send( hreq_ );
+  }
+
   // request next slot leader schedule
   if ( PC_UNLIKELY( lreq_->get_is_recv() &&
                     slot_ > lreq_->get_last_slot() - PC_LEADER_MIN ) ) {
@@ -235,8 +244,13 @@ void tx_svr::on_response( rpc::slot_subscribe *res )
   for( uint64_t slot = slot_-1; slot <= slot_+4; ++slot ) {
     pub_key *ikey = lreq_->get_leader( slot );
     if ( ikey && ( !pkey || *ikey != *pkey) ) {
-      creq_->get_ip_addr( *ikey, iaddr );
-      add_addr( iaddr );
+      if ( creq_->get_ip_addr( *ikey, iaddr ) ) {
+        add_addr( iaddr );
+      } else if ( creq_->get_is_recv() ) {
+        PC_LOG_WRN( "missing leader addr: get_cluster_nodes" )
+          .add( "slot", slot ).end();
+        clnt_.send( creq_ );
+      }
     }
     pkey = ikey;
   }
@@ -253,7 +267,7 @@ void tx_svr::on_response( rpc::get_cluster_nodes *m )
         + m->get_err_msg()  + "]" );
     return;
   }
-  PC_LOG_DBG( "received get_cluster_nodes" ).end();
+  PC_LOG_INF( "received get_cluster_nodes" ).end();
 }
 
 void tx_svr::on_response( rpc::get_slot_leaders *m )
@@ -264,6 +278,16 @@ void tx_svr::on_response( rpc::get_slot_leaders *m )
     return;
   }
   PC_LOG_DBG( "received get_slot_leaders" ).end();
+}
+
+void tx_svr::on_response( rpc::get_health *m )
+{
+  if ( m->get_is_err() ) {
+    set_err_msg( "failed to get_health"
+        + m->get_err_msg()  + "]" );
+    return;
+  }
+  PC_LOG_DBG( "health update" ).end();
 }
 
 void tx_svr::reconnect_rpc()
@@ -287,6 +311,7 @@ void tx_svr::reconnect_rpc()
     has_conn_  = true;
     wait_conn_ = false;
     slot_ = 0L;
+    avec_.clear();
     clnt_.reset();
 
     // subscribe to slots and cluster addresses

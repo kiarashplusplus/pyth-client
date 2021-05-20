@@ -370,8 +370,9 @@ namespace pc
       void response( const jtree&p) override;
     private:
       typedef std::vector<pub_key> ldr_vec_t;
-      uint64_t  slot_;
+      uint64_t  rslot_;
       uint64_t  limit_;
+      uint64_t  lslot_;
       ldr_vec_t lvec_;
     };
 

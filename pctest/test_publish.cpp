@@ -336,6 +336,8 @@ int usage()
   std::cerr << "usage: test_publish " << std::endl;
   std::cerr << "  [-r <rpc_host (default " << get_rpc_host() << ")>]"
              << std::endl;
+  std::cerr << "  [-t <pyth_tx host (default " << get_rpc_host() << ")>]"
+             << std::endl;
   std::cerr << "  [-k <key_store_directory (default "
             << get_key_store() << ">]" << std::endl;
   std::cerr << "  [-c <capture file>]" << std::endl;
@@ -354,7 +356,7 @@ int main(int argc, char** argv)
   std::string rpc_host = get_rpc_host();
   std::string key_dir  = get_key_store();
   std::string tx_host  = get_rpc_host();
-  while( (opt = ::getopt(argc,argv, "r:k:c:l:ndh" )) != -1 ) {
+  while( (opt = ::getopt(argc,argv, "r:t:k:c:l:ndh" )) != -1 ) {
     switch(opt) {
       case 'r': rpc_host = optarg; break;
       case 't': tx_host = optarg; break;

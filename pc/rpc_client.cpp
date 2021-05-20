@@ -597,7 +597,9 @@ void rpc::get_cluster_nodes::response( const jtree& jt )
   for( uint32_t tok = jt.get_first( rtok ); tok; tok = jt.get_next( tok ) ) {
     pkey.init_from_text( jt.get_str( jt.find_val( tok, "pubkey" ) ) );
     ip_addr addr( jt.get_str( jt.find_val( tok, "tpu" ) ) );
-    nmap_.ref( nmap_.add( pkey ) ) = addr;
+    node_map_t::iter_t it = nmap_.find( pkey );
+    if ( !it ) it = nmap_.add( pkey );
+    nmap_.ref( it ) = addr;
   }
   on_response( this );
 }
@@ -606,13 +608,15 @@ void rpc::get_cluster_nodes::response( const jtree& jt )
 // get_slot_leaders
 
 rpc::get_slot_leaders::get_slot_leaders()
-: slot_( 0L )
+: rslot_( 0UL ),
+  limit_( 0UL ),
+  lslot_( 0UL )
 {
 }
 
 void rpc::get_slot_leaders::set_slot(uint64_t slot)
 {
-  slot_ = slot;
+  rslot_ = slot;
 }
 
 void rpc::get_slot_leaders::set_limit( uint64_t limit )
@@ -622,12 +626,12 @@ void rpc::get_slot_leaders::set_limit( uint64_t limit )
 
 uint64_t rpc::get_slot_leaders::get_last_slot() const
 {
-  return slot_ + limit_;
+  return lslot_ + limit_;
 }
 
 pub_key *rpc::get_slot_leaders::get_leader( uint64_t slot )
 {
-  uint64_t idx = slot - slot_;
+  uint64_t idx = slot - lslot_;
   if ( idx < lvec_.size() ) {
     return &lvec_[idx];
   } else {
@@ -637,16 +641,17 @@ pub_key *rpc::get_slot_leaders::get_leader( uint64_t slot )
 
 void rpc::get_slot_leaders::request( json_wtr& msg )
 {
-  lvec_.clear();
   msg.add_key( "method", "getSlotLeaders" );
   msg.add_key( "params", json_wtr::e_arr );
-  msg.add_val( slot_ );
+  msg.add_val( rslot_ );
   msg.add_val( limit_ );
   msg.pop();
 }
 
 void rpc::get_slot_leaders::response( const jtree& jt )
 {
+  lvec_.clear();
+  lslot_ = rslot_;
   if ( on_error( jt, this ) ) return;
   uint32_t rtok = jt.find_val( 1, "result" );
   pub_key pkey;

@@ -28,6 +28,7 @@ namespace pc
   class tx_svr : public error,
                  public net_accept,
                  public rpc_sub,
+                 public rpc_sub_i<rpc::get_health>,
                  public rpc_sub_i<rpc::slot_subscribe>,
                  public rpc_sub_i<rpc::get_cluster_nodes>,
                  public rpc_sub_i<rpc::get_slot_leaders>
@@ -67,6 +68,7 @@ namespace pc
     void on_response( rpc::slot_subscribe * ) override;
     void on_response( rpc::get_cluster_nodes * ) override;
     void on_response( rpc::get_slot_leaders * ) override;
+    void on_response( rpc::get_health * ) override;
 
   private:
 
@@ -87,6 +89,7 @@ namespace pc
     char        *msg_;         // message buffer
     ip_addr      src_[1];      // src ip address
     uint64_t     slot_;        // current slot
+    uint64_t     slot_cnt_;    // number of slots received
     addr_vec_t   avec_;        // address vector of leaders
     tcp_connect  hconn_;       // rpc http connection
     ws_connect   wconn_;       // rpc websocket sonnection
@@ -102,6 +105,7 @@ namespace pc
     rpc::slot_subscribe    sreq_[1];
     rpc::get_cluster_nodes creq_[1];
     rpc::get_slot_leaders  lreq_[1];
+    rpc::get_health        hreq_[1];
   };
 
 
