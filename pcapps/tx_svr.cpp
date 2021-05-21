@@ -313,6 +313,7 @@ void tx_svr::reconnect_rpc()
     slot_ = 0L;
     avec_.clear();
     clnt_.reset();
+    ctimeout_ = PC_NSECS_IN_SEC;
 
     // subscribe to slots and cluster addresses
     clnt_.send( sreq_ );
